@@ -42,7 +42,6 @@ def read_html(parcel):
     url = 'https://www.cookcountyassessor.com/pin/{}'.format(parcelId)
     r = requests.get(url)
     text = r.text.replace('\n', ' ').replace('\r', '') #delete line breaks for searching
-
     #quick way to get smaller text block. will need to be updated soon
     text = re.search(r".*container-fluid psuedo-table(.*?)small",text,re.MULTILINE).group(1)
     
@@ -82,14 +81,14 @@ def tax_year_search(text,row):
         row.append(tax) #typecast int
     return row
 
-def add(text,db):
+def add(text,db,year):
     row = []
     parcel = parcel_search(text)
     row.append(parcel)
     row.append(ownership_search(text))
     row.append(lot_search(text))
     
-    ass_search(read_html(parcel),row,2020)#Change to take year input
+    ass_search(read_html(parcel),row,year)#Change to take year input
 
     row = tax_year_search(text,row)
 
@@ -102,7 +101,7 @@ def compile(pdf_list,column_names, year=CURRENT_TAX_YEAR):
     try:
        for pdf in pdf_list:
             text = read(pdf,0)
-            data = add(text,data)
+            data = add(text,data,year)
 
     except ValueError as ve:
         return ve

@@ -4,13 +4,14 @@ import pandas as pd
 
 COLUMN_NAMES = ["Parcel ID","Owner","Lot Size","Land Assessed","Building Asessed","Total Assessed"
 ,"2021 tax","2020 tax","2019 tax","2018 tax","2017 tax"]
+YEAR_LIST = [2021,2020]
 
 data = pd.DataFrame(columns=COLUMN_NAMES)
 
 sg.theme("BlueMono")
 layout = [
     [sg.T("")], [sg.Text("Choose Files: "), sg.Input(key='_FILES_'), sg.FilesBrowse()],
-    [sg.Text(key="-STATUS-",text="")],
+    [sg.Text("Select Assessment Year"),sg.Combo(YEAR_LIST, default_value=YEAR_LIST[0], key="-YEAR-")],
     [sg.Button(button_text="Read Files",key="-READ-")],
     [sg.Table([], headings=COLUMN_NAMES, enable_events=True, expand_x=True, key='-TABLE-')],
     [sg.Button(button_text="Save Table",key="-SAVE-")]
@@ -36,10 +37,9 @@ while True:
             if f[len(f)-3:len(f)] != "pdf":
                 sg.popup("ERROR\nNot all files are pdfs")
                 continue
-        
-        data = R.compile(files,COLUMN_NAMES)
-        # window.Element("-TABLE-").update(values=data.values.tolist())
-        window.Element("-TABLE-").update(headers=["test","another","why not"])
+        year = values["-YEAR-"]
+        data = R.compile(files,COLUMN_NAMES,year)
+        window.Element("-TABLE-").update(values=data.values.tolist())
 
 
     elif event == "-SAVE-":
