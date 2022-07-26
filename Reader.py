@@ -2,6 +2,7 @@ import PyPDF2
 import re
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
 
 
 PARCEL_REGEX = r"^.*(\b\d{2}-\d{2}-\d{3}-\d{3}-\d{4}\b)"
@@ -9,12 +10,11 @@ OWNERSHIP_REGEX = r"MAILING ADDRESS\n(.*)"
 LOT_SIZE_REGEX = r"\bLot\sSize\s\(SqFt\):\s?(\S*)\b"
 TAX_YEAR_REGEX = r"^{}:(\S*)"
 
-ASSESSOR_REGEX = r"{type}.*?xs-{year}\">(\S*)<"
+#ASSESSOR_REGEX = r"{type}.*?xs-{year}\">(\S*)<"
 
 TAX_YEARS = ["2021","2020","2019","2018","2017"]
 CURRENT_TAX_YEAR = 2021
 
-ASSESSOR_HEADERS = ["Land Assessed Value","Building Assessed Value","Total Assessed Value"]
 
 def read(fileName,pageNum):
     try:
@@ -37,30 +37,36 @@ def read(fileName,pageNum):
 
     return text
 
+
 def read_html(parcel):
-    parcelId = re.sub("\D", "", parcel) #removes all non digit ($ signs or commas)
-    url = 'https://www.cookcountyassessor.com/pin/{}'.format(parcelId)
-    r = requests.get(url)
-    text = r.text.replace('\n', ' ').replace('\r', '') #delete line breaks for searching
-    #quick way to get smaller text block. will need to be updated soon
-    text = re.search(r".*container-fluid psuedo-table(.*?)small",text,re.MULTILINE).group(1)
+    parcelId = re.sub("\D", "", parcel)
+    try:
+        url = 'https://www.cookcountyassessor.com/pin/{}'.format(parcelId)
+        r = requests.get(url)
+        scraper = BeautifulSoup(r.content, "html.parser")
+        #only takes the assessed valuation portion of the full assessor website
+        #can much more easily be changed to do other categories than last implementation
+        results = scraper.find_all("div", {"class": "row pt-body equal-height"})
+        return results[1:4]
+    except:
+        print("Error: html not read properly")
+        return "" #error stemming from not finding correct html table
     
-    return text
 
-def ass_search(text,row,year = CURRENT_TAX_YEAR): #ass search because it is funny
-    num = 4
-    #default is most recent assessment
-    if (year==2020):
-        num = 5
-
-    for h in ASSESSOR_HEADERS:#maybe revise the var names
-        try:
-            value = re.search(ASSESSOR_REGEX.format(type=h,year=num),text,re.MULTILINE).group(1) # "xs-5" is 2020 value, "xs-4" would be 2021
-            value = re.sub(r"[,$]","",value)
-        except:
-            value=0
-        row.append(value)
-    return row
+def ass_search(cells,row,year = CURRENT_TAX_YEAR):
+    try:
+        year_index=4 #default code is current year
+        if year == 2020:
+            year_index = 5 # signifies last years assessed values
+        for cell in cells:
+            value = cell.find("div", class_=f"col-xs-{year_index}")
+            value = re.sub(r"[,$]","",value.text)
+            row.append(value)
+        return(row)
+    except:
+        print("Error: proper values not found")
+        return []
+        
 
 def parcel_search(text):
     parcel = re.search(PARCEL_REGEX,text,re.MULTILINE).group(1)
@@ -90,7 +96,7 @@ def add(text,db,year):
     
     ass_search(read_html(parcel),row,year)#Change to take year input
 
-    row = tax_year_search(text,row)
+    tax_year_search(text,row)
 
     db.loc[len(db.index)] = row
 
@@ -102,7 +108,6 @@ def compile(pdf_list,column_names, year=CURRENT_TAX_YEAR):
        for pdf in pdf_list:
             text = read(pdf,0)
             data = add(text,data,year)
-
     except ValueError as ve:
         return ve
     return data

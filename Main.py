@@ -2,7 +2,7 @@ import PySimpleGUI as sg
 import Reader as R
 import pandas as pd
 
-COLUMN_NAMES = ["Parcel ID","Owner","Lot Size","Land Assessed","Building Asessed","Total Assessed"
+COLUMN_NAMES = ["Parcel ID","Owner","Lot Size","Total Assessed","Land Asessed","Building Assessed"
 ,"2021 tax","2020 tax","2019 tax","2018 tax","2017 tax"]
 YEAR_LIST = [2021,2020]
 
@@ -54,5 +54,3 @@ while True:
             except PermissionError:
                 pass
         sg.popup(f"Cannot open file {repr(filename)}")
-
-
